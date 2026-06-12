@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # DJ Studio - Personal Music Library PWA
 
 ## Prerequisites
@@ -57,3 +58,7 @@ npm start
 - RTL Arabic UI
 - Dark/light theme
 - Responsive design
+=======
+# dj-studio
+DJ Studio - Personal Music Library Web App (PWA) with private uploads, playlists, and music player
+>>>>>>> e5107f62653ee7bbd698ce56fa2ca2b975d3c1db

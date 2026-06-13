@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react"
 import { Upload, X, FileAudio, Loader2, CheckCircle, AlertCircle } from "lucide-react"
 import { useDropzone } from "react-dropzone"
-import { createClient, requireSession } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/client"
 import { Dialog } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { isAudioFile, getFileExtension, getMimeType, formatFileSize } from "@/lib/utils"
@@ -32,6 +32,7 @@ interface UploadFile {
 export function UploadDialog({ open, onClose, onUploadComplete }: UploadDialogProps) {
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([])
   const [uploading, setUploading] = useState(false)
+  const [generalError, setGeneralError] = useState("")
   const supabase = createClient()
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -66,23 +67,20 @@ export function UploadDialog({ open, onClose, onUploadComplete }: UploadDialogPr
   const uploadAll = async () => {
     setUploading(true)
 
-    const session = await requireSession()
-    if (!session) { setUploading(false); return }
-
-    const { data: existing } = await supabase.from("users").select("id").eq("id", session.user.id).maybeSingle()
-    if (!existing) {
-      await supabase.from("users").insert({
-        id: session.user.id,
-        email: session.user.email || "",
-        username: session.user.user_metadata?.username || session.user.email?.split("@")[0] || "مستخدم",
-      })
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id
+    if (!userId) {
+      setGeneralError("يجب تسجيل الدخول لرفع الأغاني")
+      setUploading(false)
+      return
     }
+    setGeneralError("")
 
     const pending = uploadFiles.filter((f) => f.status === "pending")
 
     for (const file of pending) {
       const ext = getFileExtension(file.name)
-      const filePath = `${session.user.id}/${crypto.randomUUID()}.${ext}`
+      const filePath = `${userId}/${crypto.randomUUID()}.${ext}`
 
       updateFile(file.id, { status: "uploading" })
 
@@ -104,23 +102,18 @@ export function UploadDialog({ open, onClose, onUploadComplete }: UploadDialogPr
 
       const title = file.name.replace(`.${ext}`, "")
 
-      const { data: { session: currentSession } } = await supabase.auth.getSession()
-      const userId = currentSession?.user?.id
-      if (!userId) {
-        updateFile(file.id, { status: "error", error: "يجب تسجيل الدخول لرفع الأغاني" })
-        continue
-      }
-
-      const songRecord = {
-        user_id: userId,
+      const insertPayload: Record<string, unknown> = {
         title,
         file_path: filePath,
         file_size: file.file.size,
         file_type: ext,
         duration: 0,
       }
+      if (userId) {
+        insertPayload.user_id = userId
+      }
 
-      const { error: dbError } = await supabase.from("songs").insert(songRecord)
+      const { error: dbError } = await supabase.from("songs").insert(insertPayload)
 
       if (dbError) {
         updateFile(file.id, { status: "error", error: dbError.message })
@@ -136,6 +129,7 @@ export function UploadDialog({ open, onClose, onUploadComplete }: UploadDialogPr
   const handleClose = () => {
     if (!uploading) {
       setUploadFiles([])
+      setGeneralError("")
       onClose()
     }
   }
@@ -162,6 +156,13 @@ export function UploadDialog({ open, onClose, onUploadComplete }: UploadDialogPr
             MP3, WAV, FLAC, M4A, AAC - حد أقصى 50MB
           </p>
         </div>
+
+        {generalError && (
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+            <AlertCircle size={16} />
+            {generalError}
+          </div>
+        )}
 
         {uploadFiles.length > 0 && (
           <div className="space-y-2 max-h-60 overflow-y-auto">

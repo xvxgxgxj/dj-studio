@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Disc3, Plus } from "lucide-react"
+import { Disc3, Plus, AlertCircle } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { AppShell } from "@/components/layout/AppShell"
 import { Card } from "@/components/ui/card"
@@ -16,6 +16,8 @@ export default function AlbumsPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [newTitle, setNewTitle] = useState("")
   const [newDesc, setNewDesc] = useState("")
+  const [creating, setCreating] = useState(false)
+  const [error, setError] = useState("")
   const supabase = createClient()
   const router = useRouter()
 
@@ -34,16 +36,29 @@ export default function AlbumsPage() {
 
   const createAlbum = async () => {
     if (!newTitle.trim()) return
+    setCreating(true)
+    setError("")
+
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    await supabase.from("albums").insert({
+    if (!user) { setError("يجب تسجيل الدخول أولاً"); setCreating(false); return }
+
+    const { error: insertError } = await supabase.from("albums").insert({
       user_id: user.id,
-      title: newTitle,
-      description: newDesc || null,
+      title: newTitle.trim(),
+      description: newDesc.trim() || null,
     })
+
+    if (insertError) {
+      setError(insertError.message)
+      setCreating(false)
+      return
+    }
+
     setNewTitle("")
     setNewDesc("")
+    setError("")
     setShowCreate(false)
+    setCreating(false)
     fetchAlbums()
   }
 
@@ -93,7 +108,7 @@ export default function AlbumsPage() {
           </div>
         )}
 
-        <Dialog open={showCreate} onClose={() => setShowCreate(false)} title="ألبوم جديد">
+        <Dialog open={showCreate} onClose={() => { setShowCreate(false); setError("") }} title="ألبوم جديد">
           <div className="space-y-4">
             <Input
               label="اسم الألبوم"
@@ -107,8 +122,14 @@ export default function AlbumsPage() {
               onChange={(e) => setNewDesc(e.target.value)}
               placeholder="وصف الألبوم"
             />
-            <Button onClick={createAlbum} className="w-full" disabled={!newTitle.trim()}>
-              إنشاء الألبوم
+            {error && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                <AlertCircle size={16} />
+                {error}
+              </div>
+            )}
+            <Button onClick={createAlbum} className="w-full" disabled={!newTitle.trim() || creating}>
+              {creating ? "جاري الإنشاء..." : "إنشاء الألبوم"}
             </Button>
           </div>
         </Dialog>

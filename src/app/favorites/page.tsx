@@ -29,7 +29,11 @@ export default function FavoritesPage() {
   const removeFavorite = async (songId: string) => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    await supabase.from("favorites").delete().eq("song_id", songId).eq("user_id", user.id)
+    const { error } = await supabase.from("favorites").delete().eq("song_id", songId).eq("user_id", user.id)
+    if (error) {
+      alert("فشل إزالة الأغنية من المفضلة: " + error.message)
+      return
+    }
     setSongs((prev) => prev.filter((s) => s.id !== songId))
   }
 

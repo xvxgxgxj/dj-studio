@@ -67,11 +67,11 @@ export default function LibraryPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     if (favorites.has(songId)) {
-      await supabase.from("favorites").delete().eq("song_id", songId).eq("user_id", user.id)
-      setFavorites((prev) => { const n = new Set(prev); n.delete(songId); return n })
+      const { error } = await supabase.from("favorites").delete().eq("song_id", songId).eq("user_id", user.id)
+      if (!error) setFavorites((prev) => { const n = new Set(prev); n.delete(songId); return n })
     } else {
-      await supabase.from("favorites").insert({ song_id: songId, user_id: user.id })
-      setFavorites((prev) => new Set(prev).add(songId))
+      const { error } = await supabase.from("favorites").insert({ song_id: songId, user_id: user.id })
+      if (!error) setFavorites((prev) => new Set(prev).add(songId))
     }
   }
 

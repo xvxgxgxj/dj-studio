@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ListMusic, Plus } from "lucide-react"
+import { ListMusic, Plus, AlertCircle } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { AppShell } from "@/components/layout/AppShell"
 import { Card } from "@/components/ui/card"
@@ -15,6 +15,8 @@ export default function PlaylistsPage() {
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [showCreate, setShowCreate] = useState(false)
   const [newTitle, setNewTitle] = useState("")
+  const [creating, setCreating] = useState(false)
+  const [error, setError] = useState("")
   const supabase = createClient()
   const router = useRouter()
 
@@ -33,11 +35,27 @@ export default function PlaylistsPage() {
 
   const createPlaylist = async () => {
     if (!newTitle.trim()) return
+    setCreating(true)
+    setError("")
+
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    await supabase.from("playlists").insert({ user_id: user.id, title: newTitle })
+    if (!user) { setError("يجب تسجيل الدخول أولاً"); setCreating(false); return }
+
+    const { error: insertError } = await supabase.from("playlists").insert({
+      user_id: user.id,
+      title: newTitle.trim(),
+    })
+
+    if (insertError) {
+      setError(insertError.message)
+      setCreating(false)
+      return
+    }
+
     setNewTitle("")
+    setError("")
     setShowCreate(false)
+    setCreating(false)
     fetchPlaylists()
   }
 
@@ -78,10 +96,18 @@ export default function PlaylistsPage() {
           </div>
         )}
 
-        <Dialog open={showCreate} onClose={() => setShowCreate(false)} title="قائمة تشغيل جديدة">
+        <Dialog open={showCreate} onClose={() => { setShowCreate(false); setError("") }} title="قائمة تشغيل جديدة">
           <div className="space-y-4">
             <Input label="اسم القائمة" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="أدخل اسم القائمة" />
-            <Button onClick={createPlaylist} className="w-full" disabled={!newTitle.trim()}>إنشاء القائمة</Button>
+            {error && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                <AlertCircle size={16} />
+                {error}
+              </div>
+            )}
+            <Button onClick={createPlaylist} className="w-full" disabled={!newTitle.trim() || creating}>
+              {creating ? "جاري الإنشاء..." : "إنشاء القائمة"}
+            </Button>
           </div>
         </Dialog>
       </div>

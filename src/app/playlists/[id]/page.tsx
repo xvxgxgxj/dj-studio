@@ -39,17 +39,25 @@ export default function PlaylistDetailPage() {
   useEffect(() => { fetchData() }, [params.id])
 
   const addSong = async (songId: string) => {
-    await supabase.from("playlist_songs").insert({
+    const { error } = await supabase.from("playlist_songs").insert({
       playlist_id: params.id as string,
       song_id: songId,
       position: playlistSongs.length,
     })
+    if (error) {
+      alert("فشل إضافة الأغنية: " + error.message)
+      return
+    }
     setShowAdd(false)
     fetchData()
   }
 
   const removeSong = async (psId: string) => {
-    await supabase.from("playlist_songs").delete().eq("id", psId)
+    const { error } = await supabase.from("playlist_songs").delete().eq("id", psId)
+    if (error) {
+      alert("فشل حذف الأغنية: " + error.message)
+      return
+    }
     fetchData()
   }
 

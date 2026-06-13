@@ -15,7 +15,13 @@ interface UploadDialogProps {
   onUploadComplete: () => void
 }
 
+let fileIdCounter = 0
+function nextFileId() {
+  return ++fileIdCounter
+}
+
 interface UploadFile {
+  id: number
   file: File
   name: string
   progress: number
@@ -32,6 +38,7 @@ export function UploadDialog({ open, onClose, onUploadComplete }: UploadDialogPr
     const newFiles: UploadFile[] = acceptedFiles
       .filter((f) => isAudioFile(f.name))
       .map((file) => ({
+        id: nextFileId(),
         file,
         name: file.name,
         progress: 0,
@@ -48,25 +55,26 @@ export function UploadDialog({ open, onClose, onUploadComplete }: UploadDialogPr
     maxSize: MAX_FILE_SIZE,
   })
 
-  const removeFile = (index: number) => {
-    setUploadFiles((prev) => prev.filter((_, i) => i !== index))
+  const removeFile = (id: number) => {
+    setUploadFiles((prev) => prev.filter((f) => f.id !== id))
+  }
+
+  const updateFile = (id: number, update: Partial<UploadFile>) => {
+    setUploadFiles((prev) => prev.map((f) => (f.id === id ? { ...f, ...update } : f)))
   }
 
   const uploadAll = async () => {
     setUploading(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) { setUploading(false); return }
 
     const pending = uploadFiles.filter((f) => f.status === "pending")
 
-    for (let i = 0; i < pending.length; i++) {
-      const file = pending[i]
+    for (const file of pending) {
       const ext = getFileExtension(file.name)
       const filePath = `${user.id}/${crypto.randomUUID()}.${ext}`
 
-      setUploadFiles((prev) =>
-        prev.map((f) => (f.name === file.name ? { ...f, status: "uploading" as const } : f))
-      )
+      updateFile(file.id, { status: "uploading" })
 
       const { error: uploadError } = await supabase.storage
         .from(STORAGE_BUCKETS.SONGS)
@@ -76,13 +84,7 @@ export function UploadDialog({ open, onClose, onUploadComplete }: UploadDialogPr
         })
 
       if (uploadError) {
-        setUploadFiles((prev) =>
-          prev.map((f) =>
-            f.name === file.name
-              ? { ...f, status: "error" as const, error: "فشل الرفع" }
-              : f
-          )
-        )
+        updateFile(file.id, { status: "error", error: uploadError.message })
         continue
       }
 
@@ -98,19 +100,9 @@ export function UploadDialog({ open, onClose, onUploadComplete }: UploadDialogPr
       })
 
       if (dbError) {
-        setUploadFiles((prev) =>
-          prev.map((f) =>
-            f.name === file.name
-              ? { ...f, status: "error" as const, error: "فشل حفظ البيانات" }
-              : f
-          )
-        )
+        updateFile(file.id, { status: "error", error: dbError.message })
       } else {
-        setUploadFiles((prev) =>
-          prev.map((f) =>
-            f.name === file.name ? { ...f, status: "done" as const, progress: 100 } : f
-          )
-        )
+        updateFile(file.id, { status: "done", progress: 100 })
       }
     }
 
@@ -150,9 +142,9 @@ export function UploadDialog({ open, onClose, onUploadComplete }: UploadDialogPr
 
         {uploadFiles.length > 0 && (
           <div className="space-y-2 max-h-60 overflow-y-auto">
-            {uploadFiles.map((f, i) => (
+            {uploadFiles.map((f) => (
               <div
-                key={i}
+                key={f.id}
                 className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10"
               >
                 <FileAudio size={20} className="text-white/40 flex-shrink-0" />
@@ -174,7 +166,7 @@ export function UploadDialog({ open, onClose, onUploadComplete }: UploadDialogPr
                 )}
                 {f.status === "pending" && !uploading && (
                   <button
-                    onClick={() => removeFile(i)}
+                    onClick={() => removeFile(f.id)}
                     className="text-white/30 hover:text-red-400"
                   >
                     <X size={18} />

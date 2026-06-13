@@ -48,17 +48,25 @@ export default function AlbumDetailPage() {
   }, [params.id])
 
   const addSong = async (songId: string) => {
-    await supabase.from("album_songs").insert({
+    const { error } = await supabase.from("album_songs").insert({
       album_id: params.id as string,
       song_id: songId,
       position: albumSongs.length,
     })
+    if (error) {
+      alert("فشل إضافة الأغنية: " + error.message)
+      return
+    }
     setShowAdd(false)
     fetchAlbumSongs()
   }
 
   const removeSong = async (albumSongId: string) => {
-    await supabase.from("album_songs").delete().eq("id", albumSongId)
+    const { error } = await supabase.from("album_songs").delete().eq("id", albumSongId)
+    if (error) {
+      alert("فشل حذف الأغنية: " + error.message)
+      return
+    }
     fetchAlbumSongs()
   }
 

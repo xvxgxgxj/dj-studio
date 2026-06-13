@@ -22,7 +22,7 @@ export default function AdminPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setIsAdmin(false); return }
 
-      const { data: currentUser } = await supabase.from("users").select("is_admin").eq("id", user.id).single()
+      const { data: currentUser } = await supabase.from("users").select("is_admin").eq("id", user.id).maybeSingle()
       if (!currentUser?.is_admin) { setIsAdmin(false); return }
 
       setIsAdmin(true)

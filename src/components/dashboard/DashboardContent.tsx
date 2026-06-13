@@ -26,33 +26,47 @@ export function DashboardContent() {
   const supabase = createClient()
 
   useEffect(() => {
+    let cancelled = false
+
     async function loadStats() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user || cancelled) return
 
       const [songsRes, albumsRes, playlistsRes, favoritesRes, historyRes] =
         await Promise.all([
-          supabase.from("songs").select("*").eq("user_id", user.id),
+          supabase.from("songs").select("file_size, duration").eq("user_id", user.id),
           supabase.from("albums").select("id", { count: "exact", head: true }).eq("user_id", user.id),
           supabase.from("playlists").select("id", { count: "exact", head: true }).eq("user_id", user.id),
           supabase.from("favorites").select("id", { count: "exact", head: true }).eq("user_id", user.id),
           supabase.from("play_history")
-            .select("songs(*)")
+            .select("song_id, played_at")
             .eq("user_id", user.id)
             .order("played_at", { ascending: false })
             .limit(5),
         ])
 
+      if (cancelled) return
+
       const songs = songsRes.data || []
       setSongCount(songs.length)
-      setAlbumCount(albumsRes.count || 0)
-      setPlaylistCount(playlistsRes.count || 0)
-      setFavoriteCount(favoritesRes.count || 0)
-      setStorageUsed(songs.reduce((acc, s) => acc + s.file_size, 0))
-      setTotalDuration(songs.reduce((acc, s) => acc + s.duration, 0))
-      setRecentPlays((historyRes.data || []).map((h: unknown) => (h as { songs: Song }).songs).filter(Boolean))
+      setAlbumCount(albumsRes.count ?? 0)
+      setPlaylistCount(playlistsRes.count ?? 0)
+      setFavoriteCount(favoritesRes.count ?? 0)
+      setStorageUsed(songs.reduce((acc, s) => acc + (s as { file_size: number }).file_size, 0))
+      setTotalDuration(songs.reduce((acc, s) => acc + (s as { duration: number }).duration, 0))
+
+      if (historyRes.data && historyRes.data.length > 0) {
+        const songIds = historyRes.data.map((h: { song_id: string }) => h.song_id)
+        const { data: historySongs } = await supabase
+          .from("songs")
+          .select("*")
+          .in("id", songIds)
+        if (historySongs) setRecentPlays(historySongs as Song[])
+      }
     }
+
     loadStats()
+    return () => { cancelled = true }
   }, [])
 
   const statCards = [

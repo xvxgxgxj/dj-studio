@@ -25,7 +25,7 @@ export default function PlaylistDetailPage() {
   const fetchData = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     const [playlistRes, songsRes] = await Promise.all([
-      supabase.from("playlists").select("*").eq("id", params.id).single(),
+      supabase.from("playlists").select("*").eq("id", params.id).maybeSingle(),
       supabase.from("playlist_songs").select("*, song:songs(*)").eq("playlist_id", params.id).order("position", { ascending: true }),
     ])
     setPlaylist(playlistRes.data)

@@ -21,8 +21,8 @@ export default function AlbumDetailPage() {
   const supabase = createClient()
 
   const fetchAlbum = async () => {
-    const { data } = await supabase.from("albums").select("*").eq("id", params.id).single()
-    setAlbum(data)
+    const { data } = await supabase.from("albums").select("*").eq("id", params.id).maybeSingle()
+    setAlbum(data as Album | null)
   }
 
   const fetchAlbumSongs = async () => {

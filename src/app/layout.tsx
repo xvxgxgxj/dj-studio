@@ -52,7 +52,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${notoArabic.variable} h-full antialiased`}
     >
       <head>
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <link rel="apple-touch-icon" href="/icons/icon.svg" />
       </head>
       <body className="min-h-full bg-black text-white font-[family-name:var(--font-noto-arabic)]">
         {children}

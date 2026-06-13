@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, Disc3 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
@@ -16,20 +16,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
+  const checkRan = useRef(false)
 
   useEffect(() => {
+    if (checkRan.current) return
+    checkRan.current = true
+
     async function checkAuth() {
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (!authUser) {
         router.push("/login")
         return
       }
+
       const { data } = await supabase
         .from("users")
         .select("*")
         .eq("id", authUser.id)
-        .single()
-      setUser(data)
+        .maybeSingle()
+
+      if (data) {
+        setUser(data as User)
+      } else {
+        setUser({
+          id: authUser.id,
+          email: authUser.email || "",
+          username: authUser.user_metadata?.username || authUser.email?.split("@")[0] || "مستخدم",
+          created_at: authUser.created_at,
+        })
+      }
       setLoading(false)
     }
     checkAuth()

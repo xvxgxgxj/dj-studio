@@ -10,26 +10,36 @@ export function useUser() {
   const supabase = createClient()
 
   useEffect(() => {
+    let cancelled = false
+
     async function getUser() {
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (cancelled) return
+
       if (authUser) {
         const { data } = await supabase
           .from("users")
           .select("*")
           .eq("id", authUser.id)
-          .single()
-        setUser(data)
+          .maybeSingle()
+
+        if (data) {
+          setUser(data as User)
+        } else if (!cancelled) {
+          setUser({
+            id: authUser.id,
+            email: authUser.email || "",
+            username: authUser.user_metadata?.username || authUser.email?.split("@")[0] || "مستخدم",
+            created_at: authUser.created_at,
+          })
+        }
       }
-      setLoading(false)
+      if (!cancelled) setLoading(false)
     }
 
     getUser()
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === "SIGNED_OUT") {
         setUser(null)
       } else if (event === "SIGNED_IN") {
@@ -37,7 +47,10 @@ export function useUser() {
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
+    }
   }, [])
 
   return { user, loading }

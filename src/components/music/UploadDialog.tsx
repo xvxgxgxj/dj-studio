@@ -84,10 +84,24 @@ export function UploadDialog({ open, onClose, onUploadComplete }: UploadDialogPr
 
       updateFile(file.id, { status: "uploading" })
 
+      const bucketName = STORAGE_BUCKETS.SONGS
+      const fileName = file.name
+      const fileType = getMimeType(ext)
+      console.log("[UploadDialog] Storage upload request:", {
+        bucketName,
+        filePath,
+        fileName,
+        fileType,
+        fileSize: file.file.size,
+        fileInstance: file.file,
+        fileInstanceType: typeof file.file,
+        fileInstanceIsFile: file.file instanceof File,
+      })
+
       const { error: uploadError } = await supabase.storage
-        .from(STORAGE_BUCKETS.SONGS)
+        .from(bucketName)
         .upload(filePath, file.file, {
-          contentType: getMimeType(ext),
+          contentType: fileType,
           upsert: false,
           duplex: "half",
         })

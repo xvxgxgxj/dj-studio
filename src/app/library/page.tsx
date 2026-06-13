@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { Search, Plus, ArrowUpDown } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { createClient, requireSession } from "@/lib/supabase/client"
 import { AppShell } from "@/components/layout/AppShell"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -21,23 +21,23 @@ export default function LibraryPage() {
   const supabase = createClient()
 
   const fetchSongs = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    const session = await requireSession()
+    if (!session) return
     const { data } = await supabase
       .from("songs")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", session.user.id)
       .order("created_at", { ascending: false })
     setSongs(data || [])
   }, [])
 
   const fetchFavorites = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    const session = await requireSession()
+    if (!session) return
     const { data } = await supabase
       .from("favorites")
       .select("song_id")
-      .eq("user_id", user.id)
+      .eq("user_id", session.user.id)
     setFavorites(new Set(data?.map((f) => f.song_id) || []))
   }, [])
 
@@ -64,13 +64,13 @@ export default function LibraryPage() {
   }, [songs, search, sortBy])
 
   const toggleFavorite = async (songId: string) => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    const session = await requireSession()
+    if (!session) return
     if (favorites.has(songId)) {
-      const { error } = await supabase.from("favorites").delete().eq("song_id", songId).eq("user_id", user.id)
+      const { error } = await supabase.from("favorites").delete().eq("song_id", songId).eq("user_id", session.user.id)
       if (!error) setFavorites((prev) => { const n = new Set(prev); n.delete(songId); return n })
     } else {
-      const { error } = await supabase.from("favorites").insert({ song_id: songId, user_id: user.id })
+      const { error } = await supabase.from("favorites").insert({ song_id: songId, user_id: session.user.id })
       if (!error) setFavorites((prev) => new Set(prev).add(songId))
     }
   }

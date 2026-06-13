@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react"
 import { Upload, X, FileAudio, Loader2, CheckCircle, AlertCircle } from "lucide-react"
 import { useDropzone } from "react-dropzone"
-import { createClient } from "@/lib/supabase/client"
+import { createClient, requireSession } from "@/lib/supabase/client"
 import { Dialog } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { isAudioFile, getFileExtension, getMimeType, formatFileSize } from "@/lib/utils"
@@ -65,14 +65,15 @@ export function UploadDialog({ open, onClose, onUploadComplete }: UploadDialogPr
 
   const uploadAll = async () => {
     setUploading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setUploading(false); return }
+
+    const session = await requireSession()
+    if (!session) { setUploading(false); return }
 
     const pending = uploadFiles.filter((f) => f.status === "pending")
 
     for (const file of pending) {
       const ext = getFileExtension(file.name)
-      const filePath = `${user.id}/${crypto.randomUUID()}.${ext}`
+      const filePath = `${session.user.id}/${crypto.randomUUID()}.${ext}`
 
       updateFile(file.id, { status: "uploading" })
 
@@ -81,17 +82,21 @@ export function UploadDialog({ open, onClose, onUploadComplete }: UploadDialogPr
         .upload(filePath, file.file, {
           contentType: getMimeType(ext),
           upsert: false,
+          duplex: "half",
         })
 
       if (uploadError) {
-        updateFile(file.id, { status: "error", error: uploadError.message })
+        const msg = uploadError.message.includes("bucket")
+          ? "حاوية التخزين غير موجودة. الرجاء إنشاء حاوية 'songs' في Supabase"
+          : uploadError.message
+        updateFile(file.id, { status: "error", error: msg })
         continue
       }
 
       const title = file.name.replace(`.${ext}`, "")
 
       const { error: dbError } = await supabase.from("songs").insert({
-        user_id: user.id,
+        user_id: session.user.id,
         title,
         file_path: filePath,
         file_size: file.file.size,

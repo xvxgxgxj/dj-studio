@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Users, HardDrive, Music2, Disc3, TrendingUp } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { createClient, requireSession } from "@/lib/supabase/client"
 import { AppShell } from "@/components/layout/AppShell"
 import { Card } from "@/components/ui/card"
 import { formatFileSize } from "@/lib/utils"
@@ -19,10 +19,10 @@ export default function AdminPage() {
 
   useEffect(() => {
     async function checkAndLoad() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { setIsAdmin(false); return }
+      const session = await requireSession()
+      if (!session) return
 
-      const { data: currentUser } = await supabase.from("users").select("is_admin").eq("id", user.id).maybeSingle()
+      const { data: currentUser } = await supabase.from("users").select("is_admin").eq("id", session.user.id).maybeSingle()
       if (!currentUser?.is_admin) { setIsAdmin(false); return }
 
       setIsAdmin(true)
@@ -48,69 +48,85 @@ export default function AdminPage() {
     checkAndLoad()
   }, [])
 
-  if (isAdmin === null) return <AppShell><div className="p-6 text-center py-16"><p className="text-white/50">جاري التحميل...</p></div></AppShell>
-  if (isAdmin === false) return <AppShell><div className="p-6 text-center py-16"><p className="text-white/50">ليس لديك صلاحية الوصول</p></div></AppShell>
-
-  const statCards = [
-    { label: "المستخدمين", value: totalUsers, icon: Users, color: "from-blue-500 to-blue-600" },
-    { label: "الأغاني", value: totalSongs, icon: Music2, color: "from-purple-500 to-purple-600" },
-    { label: "المساحة الكلية", value: formatFileSize(totalStorage), icon: HardDrive, color: "from-yellow-500 to-yellow-600" },
-    { label: "الألبومات", value: totalAlbums, icon: Disc3, color: "from-green-500 to-green-600" },
-  ]
+  if (isAdmin === null) return null
+  if (!isAdmin) return <AppShell><div className="p-6 text-center text-white/50 text-lg mt-20">غير مصرح لك بالوصول إلى لوحة التحكم</div></AppShell>
 
   return (
     <AppShell>
-      <div className="p-6 space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold text-white">لوحة الإدارة</h1>
-          <p className="text-white/50 mt-1">إدارة المنصة والإحصائيات العامة</p>
-        </div>
+      <div className="p-6 space-y-6">
+        <h1 className="text-2xl font-bold text-white">لوحة التحكم</h1>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {statCards.map((stat) => (
-            <Card key={stat.label} className="p-4">
-              <div className={`h-10 w-10 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center mb-3`}>
-                <stat.icon size={18} className="text-white" />
+          <Card className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white/50 text-xs uppercase tracking-wide">المستخدمون</p>
+                <p className="text-2xl font-bold text-white mt-1">{totalUsers}</p>
               </div>
-              <p className="text-2xl font-bold text-white">{stat.value}</p>
-              <p className="text-xs text-white/50 mt-1">{stat.label}</p>
-            </Card>
-          ))}
-        </div>
-
-        <div>
-          <h2 className="text-lg font-semibold text-white mb-4">المستخدمين</h2>
-          <Card className="overflow-hidden p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-white/5">
-                    <th className="text-right p-4 text-xs text-white/40 font-medium">المستخدم</th>
-                    <th className="text-right p-4 text-xs text-white/40 font-medium">البريد</th>
-                    <th className="text-right p-4 text-xs text-white/40 font-medium">الأغاني</th>
-                    <th className="text-right p-4 text-xs text-white/40 font-medium">المساحة</th>
-                    <th className="text-right p-4 text-xs text-white/40 font-medium">الحالة</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {users.map((user) => (
-                    <tr key={user.id} className="hover:bg-white/5 transition-colors">
-                      <td className="p-4 text-sm text-white">{user.username}</td>
-                      <td className="p-4 text-sm text-white/50" dir="ltr">{user.email}</td>
-                      <td className="p-4 text-sm text-white/70">{user.song_count}</td>
-                      <td className="p-4 text-sm text-white/70">{formatFileSize(user.storage_used)}</td>
-                      <td className="p-4">
-                        <span className={`px-2 py-1 rounded-lg text-xs ${user.is_admin ? "bg-blue-500/20 text-blue-400" : "bg-white/10 text-white/50"}`}>
-                          {user.is_admin ? "مدير" : "مستخدم"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                <Users size={20} className="text-blue-400" />
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white/50 text-xs uppercase tracking-wide">الأغاني</p>
+                <p className="text-2xl font-bold text-white mt-1">{totalSongs}</p>
+              </div>
+              <div className="h-10 w-10 rounded-xl bg-green-500/20 flex items-center justify-center">
+                <Music2 size={20} className="text-green-400" />
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white/50 text-xs uppercase tracking-wide">التخزين</p>
+                <p className="text-2xl font-bold text-white mt-1">{formatFileSize(totalStorage)}</p>
+              </div>
+              <div className="h-10 w-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                <HardDrive size={20} className="text-purple-400" />
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white/50 text-xs uppercase tracking-wide">الألبومات</p>
+                <p className="text-2xl font-bold text-white mt-1">{totalAlbums}</p>
+              </div>
+              <div className="h-10 w-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
+                <Disc3 size={20} className="text-orange-400" />
+              </div>
             </div>
           </Card>
         </div>
+
+        <Card>
+          <div className="p-4 border-b border-white/10">
+            <h2 className="text-lg font-semibold text-white">المستخدمون</h2>
+          </div>
+          <div className="divide-y divide-white/5">
+            {users.map((u) => (
+              <div key={u.id} className="p-4 flex items-center justify-between text-sm">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center">
+                    <Users size={14} className="text-white/40" />
+                  </div>
+                  <div>
+                    <p className="text-white">{u.email || "بدون بريد"}</p>
+                    <p className="text-white/30 text-xs">{u.id.slice(0, 8)}...</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-6">
+                  <span className="text-white/50">{u.song_count} أغنية</span>
+                  <span className="text-white/50">{formatFileSize(u.storage_used)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
       </div>
     </AppShell>
   )

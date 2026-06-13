@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Heart, Music2 } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { createClient, requireSession } from "@/lib/supabase/client"
 import { AppShell } from "@/components/layout/AppShell"
 import { Card } from "@/components/ui/card"
 import { SongCard } from "@/components/music/SongCard"
@@ -14,12 +14,12 @@ export default function FavoritesPage() {
 
   useEffect(() => {
     async function fetchFavorites() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const session = await requireSession()
+      if (!session) return
       const { data } = await supabase
         .from("favorites")
         .select("*, song:songs(*)")
-        .eq("user_id", user.id)
+        .eq("user_id", session.user.id)
         .order("created_at", { ascending: false })
       setSongs((data || []).map((f: { song: Song }) => f.song).filter(Boolean))
     }
@@ -27,9 +27,9 @@ export default function FavoritesPage() {
   }, [])
 
   const removeFavorite = async (songId: string) => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const { error } = await supabase.from("favorites").delete().eq("song_id", songId).eq("user_id", user.id)
+    const session = await requireSession()
+    if (!session) return
+    const { error } = await supabase.from("favorites").delete().eq("song_id", songId).eq("user_id", session.user.id)
     if (error) {
       alert("فشل إزالة الأغنية من المفضلة: " + error.message)
       return
@@ -55,7 +55,13 @@ export default function FavoritesPage() {
         ) : (
           <Card className="divide-y divide-white/5 p-2">
             {songs.map((song) => (
-              <SongCard key={song.id} song={song} isFavorite onToggleFavorite={() => removeFavorite(song.id)} allSongs={songs} />
+              <SongCard
+                key={song.id}
+                song={song}
+                isFavorite
+                onToggleFavorite={() => removeFavorite(song.id)}
+                allSongs={songs}
+              />
             ))}
           </Card>
         )}

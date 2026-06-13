@@ -10,7 +10,7 @@ import {
   ListMusic,
   Heart,
 } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { createClient, requireSession } from "@/lib/supabase/client"
 import { Card } from "@/components/ui/card"
 import { formatFileSize, formatDuration } from "@/lib/utils"
 import type { Song } from "@/lib/types"
@@ -29,8 +29,9 @@ export function DashboardContent() {
     let cancelled = false
 
     async function loadStats() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user || cancelled) return
+      const session = await requireSession()
+      if (!session || cancelled) return
+      const user = session.user
 
       const [songsRes, albumsRes, playlistsRes, favoritesRes, historyRes] =
         await Promise.all([

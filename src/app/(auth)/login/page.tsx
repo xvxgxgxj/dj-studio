@@ -37,7 +37,7 @@ export default function LoginPage() {
       return
     }
 
-    router.push("/")
+    window.location.href = "/"
   }
 
   if (!mounted) {

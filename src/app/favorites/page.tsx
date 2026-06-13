@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Heart, Music2 } from "lucide-react"
-import { createClient, requireSession } from "@/lib/supabase/client"
+import { createClient, getSession } from "@/lib/supabase/client"
 import { AppShell } from "@/components/layout/AppShell"
 import { Card } from "@/components/ui/card"
 import { SongCard } from "@/components/music/SongCard"
@@ -14,7 +14,7 @@ export default function FavoritesPage() {
 
   useEffect(() => {
     async function fetchFavorites() {
-      const session = await requireSession()
+      const session = await getSession()
       if (!session) return
       const { data } = await supabase
         .from("favorites")
@@ -27,7 +27,7 @@ export default function FavoritesPage() {
   }, [])
 
   const removeFavorite = async (songId: string) => {
-    const session = await requireSession()
+    const session = await getSession()
     if (!session) return
     const { error } = await supabase.from("favorites").delete().eq("song_id", songId).eq("user_id", session.user.id)
     if (error) {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Disc3, Plus, AlertCircle } from "lucide-react"
-import { createClient, requireSession } from "@/lib/supabase/client"
+import { createClient, getSession } from "@/lib/supabase/client"
 import { AppShell } from "@/components/layout/AppShell"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -22,7 +22,7 @@ export default function AlbumsPage() {
   const router = useRouter()
 
   const fetchAlbums = async () => {
-    const session = await requireSession()
+    const session = await getSession()
     if (!session) return
     const { data } = await supabase
       .from("albums")
@@ -39,14 +39,14 @@ export default function AlbumsPage() {
     setCreating(true)
     setError("")
 
-    const session = await requireSession()
-    if (!session) { setError("يجب تسجيل الدخول أولاً"); setCreating(false); return }
-
-    const { error: insertError } = await supabase.from("albums").insert({
-      user_id: session.user.id,
+    const session = await getSession()
+    const payload: Record<string, unknown> = {
       title: newTitle.trim(),
       description: newDesc.trim() || null,
-    })
+    }
+    if (session?.user?.id) payload.user_id = session.user.id
+
+    const { error: insertError } = await supabase.from("albums").insert(payload)
 
     if (insertError) {
       setError(insertError.message)

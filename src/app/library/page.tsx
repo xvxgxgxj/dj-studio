@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { Search, Plus, ArrowUpDown } from "lucide-react"
-import { createClient, requireSession } from "@/lib/supabase/client"
+import { createClient, getSession } from "@/lib/supabase/client"
 import { AppShell } from "@/components/layout/AppShell"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -21,7 +21,7 @@ export default function LibraryPage() {
   const supabase = createClient()
 
   const fetchSongs = useCallback(async () => {
-    const session = await requireSession()
+    const session = await getSession()
     if (!session) return
     const { data } = await supabase
       .from("songs")
@@ -32,7 +32,7 @@ export default function LibraryPage() {
   }, [])
 
   const fetchFavorites = useCallback(async () => {
-    const session = await requireSession()
+    const session = await getSession()
     if (!session) return
     const { data } = await supabase
       .from("favorites")
@@ -64,13 +64,15 @@ export default function LibraryPage() {
   }, [songs, search, sortBy])
 
   const toggleFavorite = async (songId: string) => {
-    const session = await requireSession()
+    const session = await getSession()
     if (!session) return
     if (favorites.has(songId)) {
       const { error } = await supabase.from("favorites").delete().eq("song_id", songId).eq("user_id", session.user.id)
       if (!error) setFavorites((prev) => { const n = new Set(prev); n.delete(songId); return n })
     } else {
-      const { error } = await supabase.from("favorites").insert({ song_id: songId, user_id: session.user.id })
+      const payload: Record<string, unknown> = { song_id: songId }
+      if (session?.user?.id) payload.user_id = session.user.id
+      const { error } = await supabase.from("favorites").insert(payload)
       if (!error) setFavorites((prev) => new Set(prev).add(songId))
     }
   }

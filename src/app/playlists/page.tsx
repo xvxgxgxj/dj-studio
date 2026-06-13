@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ListMusic, Plus, AlertCircle } from "lucide-react"
-import { createClient, requireSession } from "@/lib/supabase/client"
+import { createClient, getSession } from "@/lib/supabase/client"
 import { AppShell } from "@/components/layout/AppShell"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -21,7 +21,7 @@ export default function PlaylistsPage() {
   const router = useRouter()
 
   const fetchPlaylists = async () => {
-    const session = await requireSession()
+    const session = await getSession()
     if (!session) return
     const { data } = await supabase
       .from("playlists")
@@ -38,13 +38,13 @@ export default function PlaylistsPage() {
     setCreating(true)
     setError("")
 
-    const session = await requireSession()
-    if (!session) { setError("يجب تسجيل الدخول أولاً"); setCreating(false); return }
-
-    const { error: insertError } = await supabase.from("playlists").insert({
-      user_id: session.user.id,
+    const session = await getSession()
+    const payload: Record<string, unknown> = {
       title: newTitle.trim(),
-    })
+    }
+    if (session?.user?.id) payload.user_id = session.user.id
+
+    const { error: insertError } = await supabase.from("playlists").insert(payload)
 
     if (insertError) {
       setError(insertError.message)

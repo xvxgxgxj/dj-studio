@@ -51,14 +51,19 @@ export default function SignupPage() {
     }
 
     if (authData.user) {
-      await supabase.from("users").insert({
+      const { error: userInsertError } = await supabase.from("users").insert({
         id: authData.user.id,
         email,
         username,
       })
+      if (userInsertError && !userInsertError.message.includes("duplicate")) {
+        setError("تم إنشاء الحساب لكن فشل حفظ البيانات: " + userInsertError.message)
+        setLoading(false)
+        return
+      }
     }
 
-    router.push("/login?registered=true")
+    window.location.href = "/login?registered=true"
   }
 
   if (!mounted) {

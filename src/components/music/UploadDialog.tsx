@@ -69,6 +69,15 @@ export function UploadDialog({ open, onClose, onUploadComplete }: UploadDialogPr
     const session = await requireSession()
     if (!session) { setUploading(false); return }
 
+    const { data: existing } = await supabase.from("users").select("id").eq("id", session.user.id).maybeSingle()
+    if (!existing) {
+      await supabase.from("users").insert({
+        id: session.user.id,
+        email: session.user.email || "",
+        username: session.user.user_metadata?.username || session.user.email?.split("@")[0] || "مستخدم",
+      })
+    }
+
     const pending = uploadFiles.filter((f) => f.status === "pending")
 
     for (const file of pending) {

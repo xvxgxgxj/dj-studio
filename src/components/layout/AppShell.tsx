@@ -38,12 +38,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       if (data) {
         setUser(data as User)
       } else {
-        setUser({
+        const { error: insertErr } = await supabase.from("users").insert({
           id: authUser.id,
           email: authUser.email || "",
           username: authUser.user_metadata?.username || authUser.email?.split("@")[0] || "مستخدم",
-          created_at: authUser.created_at,
         })
+        if (!insertErr) {
+          const { data: newUser } = await supabase.from("users").select("*").eq("id", authUser.id).maybeSingle()
+          setUser((newUser || {
+            id: authUser.id,
+            email: authUser.email || "",
+            username: authUser.user_metadata?.username || authUser.email?.split("@")[0] || "مستخدم",
+            created_at: authUser.created_at,
+          }) as User)
+        } else {
+          setUser({
+            id: authUser.id,
+            email: authUser.email || "",
+            username: authUser.user_metadata?.username || authUser.email?.split("@")[0] || "مستخدم",
+            created_at: authUser.created_at,
+          })
+        }
       }
       setLoading(false)
     }

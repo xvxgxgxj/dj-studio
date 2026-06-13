@@ -21,23 +21,12 @@ const notoArabic = Noto_Sans_Arabic({
 export const metadata: Metadata = {
   title: "DJ Studio - منصة الموسيقى الشخصية",
   description: "منصة الموسيقى الشخصية الخاصة بك - استمع ونظم وأدر مكتبتك الموسيقية",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "DJ Studio",
-  },
-  applicationName: "DJ Studio",
-  other: {
-    "mobile-web-app-capable": "yes",
-  },
 }
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#000000",
 }
 
 export default function RootLayout({
@@ -52,7 +41,20 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${notoArabic.variable} h-full antialiased`}
     >
       <head>
-        <link rel="apple-touch-icon" href="/icons/icon.svg" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(regs) {
+                  for (var i = 0; i < regs.length; i++) {
+                    regs[i].unregister();
+                  }
+                });
+              }
+            `,
+          }}
+        />
       </head>
       <body className="min-h-full bg-black text-white font-[family-name:var(--font-noto-arabic)]">
         {children}

@@ -104,14 +104,23 @@ export function UploadDialog({ open, onClose, onUploadComplete }: UploadDialogPr
 
       const title = file.name.replace(`.${ext}`, "")
 
-      const { error: dbError } = await supabase.from("songs").insert({
-        user_id: session.user.id,
+      const { data: { session: currentSession } } = await supabase.auth.getSession()
+      const userId = currentSession?.user?.id
+      if (!userId) {
+        updateFile(file.id, { status: "error", error: "يجب تسجيل الدخول لرفع الأغاني" })
+        continue
+      }
+
+      const songRecord = {
+        user_id: userId,
         title,
         file_path: filePath,
         file_size: file.file.size,
         file_type: ext,
         duration: 0,
-      })
+      }
+
+      const { error: dbError } = await supabase.from("songs").insert(songRecord)
 
       if (dbError) {
         updateFile(file.id, { status: "error", error: dbError.message })
